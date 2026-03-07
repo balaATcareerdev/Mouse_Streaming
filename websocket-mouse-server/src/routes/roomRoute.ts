@@ -31,7 +31,8 @@ roomRouter.get("/", async (req, res) => {
 
     res.status(200).json({ rooms: results });
   } catch (error) {
-    res.status(500).json({ error: "Failed to list rooms", details: error });
+    console.error("Error fetching rooms:", error);
+    res.status(500).json({ error: "Failed to list rooms" });
   }
 });
 
@@ -49,7 +50,8 @@ roomRouter.post("/", async (req, res) => {
 
     res.status(201).json({ message: "Room created successfully", room: event });
   } catch (error) {
-    res.status(500).json({ error: "Failed to create room", details: error });
+    console.error("Error creating room:", error);
+    res.status(500).json({ error: "Failed to create room" });
   }
 });
 
@@ -63,15 +65,18 @@ roomRouter.delete("/:id", async (req, res) => {
   }
 
   try {
-    const [event] = await db
+    const [room] = await db
       .delete(rooms)
       .where(eq(rooms.id, parsed.data.id))
       .returning();
 
-    res.status(200).json({ message: "Room deleted successfully", room: event });
+    if (!room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    res.status(200).json({ message: "Room deleted successfully", room });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ error: "Failed to delete room", details: error });
+    console.error("Error deleting room:", error);
+    return res.status(500).json({ error: "Failed to delete room" });
   }
 });

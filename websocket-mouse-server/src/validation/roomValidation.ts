@@ -14,6 +14,7 @@ const roomIdParamSchema = z.object({
 const createRoomBodySchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, "Room name is required")
     .max(255, "Room name must be at most 255 characters"),
   maxConnections: z.coerce.number().int().positive().max(1000).optional(),
