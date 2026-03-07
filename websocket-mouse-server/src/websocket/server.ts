@@ -35,7 +35,6 @@ export function attachWebsocket(server: http.Server) {
       const ws = socket as AliveWebSocket;
       if (!ws.isAlive) {
         socket.terminate();
-        c;
         return;
       }
       ws.isAlive = false;
