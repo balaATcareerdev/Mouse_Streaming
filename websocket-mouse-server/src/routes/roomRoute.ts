@@ -48,6 +48,14 @@ roomRouter.post("/", async (req, res) => {
   try {
     const [event] = await db.insert(rooms).values(parsed.data).returning();
 
+    // BroadCast to All
+
+    try {
+      res.app.locals.broadCastCreatedRoom?.(event);
+    } catch (broadCastError) {
+      console.error("Error broadcasting created room:", broadCastError);
+    }
+
     res.status(201).json({ message: "Room created successfully", room: event });
   } catch (error) {
     console.error("Error creating room:", error);
