@@ -1,13 +1,25 @@
 import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
+import { rooms } from "../database/schema.js";
 
 type AliveWebSocket = WebSocket & {
   isAlive: boolean;
 };
 
+type Room = typeof rooms.$inferSelect;
+
 function sendJSON(socket: WebSocket, payload: any) {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(payload));
+  }
+}
+
+function BroadCastToAll(wss: WebSocketServer, payload: any) {
+  for (const client of wss.clients) {
+    if (client.readyState !== WebSocket.OPEN) {
+      continue;
+    }
+    sendJSON(client, payload);
   }
 }
 
@@ -44,4 +56,10 @@ export function attachWebsocket(server: http.Server) {
   }, 30000);
 
   wss.on("close", () => clearInterval(interval));
+
+  function broadCastCreatedRoom(room: Room) {
+    BroadCastToAll(wss, { type: "create_room", room });
+  }
+
+  return { broadCastCreatedRoom };
 }
