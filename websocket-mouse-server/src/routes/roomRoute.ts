@@ -51,9 +51,7 @@ roomRouter.post("/", async (req, res) => {
     // BroadCast to All
 
     try {
-      if (res.app.locals.broadCastCreatedRoom) {
-        res.app.locals.broadCastCreatedRoom(event);
-      }
+      res.app.locals.broadCastCreatedRoom?.(event);
     } catch (broadCastError) {
       console.error("Error broadcasting created room:", broadCastError);
     }
