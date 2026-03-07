@@ -1,6 +1,7 @@
 import express from "express";
 import http from "http";
 import { attachWebsocket } from "./websocket/server.js";
+import { roomRouter } from "./routes/roomRoute.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -14,6 +15,8 @@ app.get("/", (req, res) => {
 });
 
 attachWebsocket(server);
+
+app.use("/rooms", roomRouter);
 
 server.listen(PORT, HOST, () => {
   const baseURL =
