@@ -1,6 +1,6 @@
 import express from "express";
 import http from "http";
-import { attachWebsocket } from "./websocket/server.ts";
+import { attachWebsocket } from "./websocket/server.js";
 
 const app = express();
 const server = http.createServer(app);

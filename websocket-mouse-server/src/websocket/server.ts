@@ -14,6 +14,7 @@ function sendJSON(socket: WebSocket, payload: any) {
 export function attachWebsocket(server: http.Server) {
   const wss = new WebSocketServer({
     server,
+    path: "/ws",
     maxPayload: 1024 * 1024, // 1MB
   });
 
@@ -32,7 +33,11 @@ export function attachWebsocket(server: http.Server) {
   const interval = setInterval(() => {
     wss.clients.forEach((socket) => {
       const ws = socket as AliveWebSocket;
-      if (!ws.isAlive) socket.terminate();
+      if (!ws.isAlive) {
+        socket.terminate();
+        c;
+        return;
+      }
       ws.isAlive = false;
 
       ws.ping();

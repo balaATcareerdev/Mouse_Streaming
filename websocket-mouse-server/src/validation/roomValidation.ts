@@ -22,10 +22,14 @@ const createRoomBodySchema = z
   })
   .refine(
     (data) => {
-      return !isNaN(new Date(data.createdAt!).getTime());
+      return (
+        data.createdAt === undefined ||
+        !Number.isNaN(Date.parse(data.createdAt))
+      );
     },
     {
       message: "createdAt must be a valid date string",
+      path: ["createdAt"],
     },
   );
 
