@@ -88,3 +88,19 @@ roomRouter.delete("/:id", async (req, res) => {
     return res.status(500).json({ error: "Failed to delete room" });
   }
 });
+
+roomRouter.post("/:id/send", (req, res) => {
+  const parsed = roomIdParamSchema.safeParse(req.params);
+
+  if (!parsed.success) {
+    return res
+      .status(400)
+      .json({ error: "Invalid Room ID", details: parsed.error });
+  }
+
+  res.app.locals.broadCastToRoomMembers?.(parsed.data.id, {
+    type: "Test Message to the Room",
+  });
+
+  res.status(200).json({ message: "Message broadcasted to room members" });
+});

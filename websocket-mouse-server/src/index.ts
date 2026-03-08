@@ -14,9 +14,11 @@ app.get("/", (req, res) => {
   res.send("Hello Welcome to Express Server!👌");
 });
 
-const { broadCastCreatedRoom } = attachWebsocket(server);
+const { broadCastCreatedRoom, broadCastToRoomMembers } =
+  attachWebsocket(server);
 
 app.locals.broadCastCreatedRoom = broadCastCreatedRoom;
+app.locals.broadCastToRoomMembers = broadCastToRoomMembers;
 
 app.use("/rooms", roomRouter);
 
