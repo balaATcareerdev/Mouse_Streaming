@@ -119,6 +119,7 @@ function handleMouseEvent(
 ) {
   if (
     message.type === "mouse_event" &&
+    Number.isInteger(message.roomId) &&
     typeof message.x === "number" &&
     typeof message.y === "number"
   ) {
@@ -241,7 +242,11 @@ export function attachWebsocket(server: http.Server) {
       }
     });
 
-    socket.on("close", () => cleanUp(socket as AliveWebSocket));
+    socket.on("close", () => {
+      void cleanUp(socket as AliveWebSocket).catch((error) => {
+        console.error("websocket cleanup failed", error);
+      });
+    });
   });
 
   const interval = setInterval(() => {
