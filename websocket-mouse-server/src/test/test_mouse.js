@@ -22,6 +22,7 @@ function createUser(userId) {
       JSON.stringify({
         type: "subscribe",
         roomId: ROOM_ID,
+        name: "Test Admin",
       }),
     );
 

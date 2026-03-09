@@ -8,14 +8,18 @@ import { ca } from "zod/locales";
 type AliveWebSocket = WebSocket & {
   isAlive: boolean;
   subscriptions: Set<number>;
+  name?: string;
 };
 
 type Room = typeof rooms.$inferSelect;
 
-type subscribeMessageType = {
-  type: "subscribe" | "unsubscribe";
-  roomId: number;
-};
+type subscribeMessageType =
+  | {
+      type: "subscribe";
+      roomId: number;
+      name: string;
+    }
+  | { type: "unsubscribe"; roomId: number };
 
 type mouseEventMessageType = {
   type: "mouse_event";
@@ -57,7 +61,7 @@ async function unsubscribeFromRoom(roomId: number, socket: AliveWebSocket) {
   }
 
   const members = roomMembers.get(roomId);
-  if (!members) return;
+  if (!members) return false;
 
   members.delete(socket);
 
@@ -67,9 +71,9 @@ async function unsubscribeFromRoom(roomId: number, socket: AliveWebSocket) {
   return true;
 }
 
-function cleanUp(socket: AliveWebSocket) {
+async function cleanUp(socket: AliveWebSocket) {
   for (const roomId of socket.subscriptions) {
-    unsubscribeFromRoom(roomId, socket);
+    await unsubscribeFromRoom(roomId, socket);
   }
 }
 
@@ -77,13 +81,18 @@ async function handleTheSubscription(
   socket: AliveWebSocket,
   message: subscribeMessageType,
 ) {
-  if (message.type === "subscribe" && Number.isInteger(message.roomId)) {
+  if (
+    message.type === "subscribe" &&
+    Number.isInteger(message.roomId) &&
+    typeof message.name === "string"
+  ) {
     const success = await subscribeToRoom(
       message.roomId,
       socket as AliveWebSocket,
     );
     if (!success) return;
     socket.subscriptions.add(message.roomId);
+    socket.name = message.name;
     sendJSON(socket, { type: "subscribed", roomId: message.roomId });
   } else if (
     message.type === "unsubscribe" &&
@@ -96,6 +105,11 @@ async function handleTheSubscription(
     if (!success) return;
     socket.subscriptions.delete(message.roomId);
     sendJSON(socket, { type: "unsubscribed", roomId: message.roomId });
+  } else {
+    sendJSON(socket, {
+      type: "error",
+      error: "Invalid subscription message format",
+    });
   }
 }
 
@@ -105,10 +119,17 @@ function handleMouseEvent(
 ) {
   if (
     message.type === "mouse_event" &&
-    !Number.isNaN(message.x) &&
-    !Number.isNaN(message.y)
+    typeof message.x === "number" &&
+    typeof message.y === "number"
   ) {
-    broadCastToAllExceptSender(message.roomId, message, socket);
+    broadCastToAllExceptSender(
+      message.roomId,
+      {
+        ...message,
+        name: socket.name,
+      },
+      socket,
+    );
   } else {
     sendJSON(socket, { type: "error", error: "Invalid mouse event data" });
   }
