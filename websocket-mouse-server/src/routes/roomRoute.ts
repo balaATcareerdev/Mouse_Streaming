@@ -88,3 +88,38 @@ roomRouter.delete("/:id", async (req, res) => {
     return res.status(500).json({ error: "Failed to delete room" });
   }
 });
+
+roomRouter.post("/:id/send", async (req, res) => {
+  const parsed = roomIdParamSchema.safeParse(req.params);
+
+  if (!parsed.success) {
+    return res
+      .status(400)
+      .json({ error: "Invalid Room ID", details: parsed.error });
+  }
+
+  try {
+    const [room] = await db
+      .select({ id: rooms.id })
+      .from(rooms)
+      .where(eq(rooms.id, parsed.data.id))
+      .limit(1);
+
+    if (!room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    res.app.locals.broadCastToRoomMembers?.(parsed.data.id, {
+      type: "Test Message to the Room",
+    });
+
+    return res
+      .status(200)
+      .json({ message: "Message broadcasted to room members" });
+  } catch (error) {
+    console.error("Error broadcasting to room members:", error);
+    return res
+      .status(500)
+      .json({ error: "Failed to broadcast to room members" });
+  }
+});
