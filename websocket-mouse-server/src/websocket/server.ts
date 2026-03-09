@@ -1,7 +1,9 @@
 import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
 import { rooms } from "../database/schema.js";
-import { send } from "process";
+import { db } from "../database/db.js";
+import { eq } from "drizzle-orm";
+import { ca } from "zod/locales";
 
 type AliveWebSocket = WebSocket & {
   isAlive: boolean;
@@ -31,14 +33,29 @@ const roomMembers = new Map<number, Set<AliveWebSocket>>();
  * }
  */
 
-function subscribeToRoom(roomId: number, socket: AliveWebSocket) {
+async function subscribeToRoom(roomId: number, socket: AliveWebSocket) {
+  const room = await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) });
+
+  if (!room) {
+    sendJSON(socket, { type: "error", error: "Room not found" });
+    return false;
+  }
+
   if (!roomMembers.has(roomId)) {
     roomMembers.set(roomId, new Set());
   }
   roomMembers.get(roomId)?.add(socket);
+  return true;
 }
 
-function unsubscribeFromRoom(roomId: number, socket: AliveWebSocket) {
+async function unsubscribeFromRoom(roomId: number, socket: AliveWebSocket) {
+  const room = await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) });
+
+  if (!room) {
+    sendJSON(socket, { type: "error", error: "Room not found" });
+    return false;
+  }
+
   const members = roomMembers.get(roomId);
   if (!members) return;
 
@@ -47,6 +64,7 @@ function unsubscribeFromRoom(roomId: number, socket: AliveWebSocket) {
   if (members.size === 0) {
     roomMembers.delete(roomId);
   }
+  return true;
 }
 
 function cleanUp(socket: AliveWebSocket) {
@@ -55,19 +73,27 @@ function cleanUp(socket: AliveWebSocket) {
   }
 }
 
-function handleTheSubscription(
+async function handleTheSubscription(
   socket: AliveWebSocket,
   message: subscribeMessageType,
 ) {
   if (message.type === "subscribe" && Number.isInteger(message.roomId)) {
-    subscribeToRoom(message.roomId, socket as AliveWebSocket);
+    const success = await subscribeToRoom(
+      message.roomId,
+      socket as AliveWebSocket,
+    );
+    if (!success) return;
     socket.subscriptions.add(message.roomId);
     sendJSON(socket, { type: "subscribed", roomId: message.roomId });
   } else if (
     message.type === "unsubscribe" &&
     Number.isInteger(message.roomId)
   ) {
-    unsubscribeFromRoom(message.roomId, socket as AliveWebSocket);
+    const success = await unsubscribeFromRoom(
+      message.roomId,
+      socket as AliveWebSocket,
+    );
+    if (!success) return;
     socket.subscriptions.delete(message.roomId);
     sendJSON(socket, { type: "unsubscribed", roomId: message.roomId });
   }
@@ -155,23 +181,38 @@ export function attachWebsocket(server: http.Server) {
     socket.on("error", console.error);
 
     socket.on("message", (data) => {
-      let message;
+      let message: unknown;
 
       try {
         message = JSON.parse(data.toString());
-      } catch (error) {
+      } catch {
         sendJSON(socket, { type: "error", error: "Invalid JSON" });
+        return;
+      }
+
+      if (
+        typeof message !== "object" ||
+        message === null ||
+        !("type" in message)
+      ) {
+        sendJSON(socket, { type: "error", error: "Invalid message format" });
         return;
       }
 
       switch (message.type) {
         case "subscribe":
         case "unsubscribe":
-          handleTheSubscription(socket as AliveWebSocket, message);
+          handleTheSubscription(
+            socket as AliveWebSocket,
+            message as subscribeMessageType,
+          );
           break;
 
         case "mouse_event":
-          handleMouseEvent(socket as AliveWebSocket, message);
+          handleMouseEvent(
+            socket as AliveWebSocket,
+            message as mouseEventMessageType,
+          );
           break;
 
         default:

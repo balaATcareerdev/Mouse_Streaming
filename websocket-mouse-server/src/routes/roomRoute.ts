@@ -89,7 +89,7 @@ roomRouter.delete("/:id", async (req, res) => {
   }
 });
 
-roomRouter.post("/:id/send", (req, res) => {
+roomRouter.post("/:id/send", async (req, res) => {
   const parsed = roomIdParamSchema.safeParse(req.params);
 
   if (!parsed.success) {
@@ -98,9 +98,28 @@ roomRouter.post("/:id/send", (req, res) => {
       .json({ error: "Invalid Room ID", details: parsed.error });
   }
 
-  res.app.locals.broadCastToRoomMembers?.(parsed.data.id, {
-    type: "Test Message to the Room",
-  });
+  try {
+    const [room] = await db
+      .select({ id: rooms.id })
+      .from(rooms)
+      .where(eq(rooms.id, parsed.data.id))
+      .limit(1);
 
-  res.status(200).json({ message: "Message broadcasted to room members" });
+    if (!room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    res.app.locals.broadCastToRoomMembers?.(parsed.data.id, {
+      type: "Test Message to the Room",
+    });
+
+    return res
+      .status(200)
+      .json({ message: "Message broadcasted to room members" });
+  } catch (error) {
+    console.error("Error broadcasting to room members:", error);
+    return res
+      .status(500)
+      .json({ error: "Failed to broadcast to room members" });
+  }
 });
